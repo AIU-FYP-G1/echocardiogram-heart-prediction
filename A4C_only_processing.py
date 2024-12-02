@@ -138,7 +138,6 @@ def evaluate(model, history):
     a4c_demographic, a4c_video, a4c_ef = process_data(
         a4c_metadata, a4c_tracings, a4c_video_features, a4c_ef_values, 'A4C'
     )
-
     X_a4c_train, X_a4c_val, X_a4c_demo_train, X_a4c_demo_val, y_train, y_val = train_test_split(
         a4c_video,
         a4c_demographic,
