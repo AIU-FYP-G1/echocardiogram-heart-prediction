@@ -6,6 +6,9 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
 
 A4C_PATH = './dataset/A4C'
 PSAX_PATH = './dataset/PSAX'
@@ -127,3 +130,41 @@ def main():
     model.save(model_filename)
 
     return model, history
+
+
+def evaluate(model, history):
+    a4c_metadata, a4c_tracings, a4c_video_features, a4c_ef_values = load_view_data(A4C_PATH, 'A4C')
+
+    a4c_demographic, a4c_video, a4c_ef = process_data(
+        a4c_metadata, a4c_tracings, a4c_video_features, a4c_ef_values, 'A4C'
+    )
+
+    X_a4c_train, X_a4c_val, X_a4c_demo_train, X_a4c_demo_val, y_train, y_val = train_test_split(
+        a4c_video,
+        a4c_demographic,
+        a4c_ef,
+        test_size=0.2,
+        random_state=42
+    )
+
+    loaded_model = tf.keras.models.load_model('./a4c_model.keras')
+
+    y_pred = loaded_model.predict([X_video_val, X_demo_val])
+
+    mae = mean_absolute_error(y_val, y_pred)
+    mse = mean_squared_error(y_val, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_val, y_pred)
+
+    print("Mean Absolute Error (MAE):", mae)
+    print("Mean Squared Error (MSE):", mse)
+    print("Root Mean Squared Error (RMSE):", rmse)
+    print("R-squared (R2) Score:", r2)
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_val, y_pred)
+    plt.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--', lw=2)
+    plt.xlabel("Actual Ejection Fraction")
+    plt.ylabel("Predicted Ejection Fraction")
+    plt.title("Actual vs Predicted Ejection Fraction")
+    plt.show()
