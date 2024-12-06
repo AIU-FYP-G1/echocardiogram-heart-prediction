@@ -4,9 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9e38a34b-0b6f-48a9-a6d8-1da1c34ec0db" name="Changes" comment="using regression combined model">
+    <list default="true" id="9e38a34b-0b6f-48a9-a6d8-1da1c34ec0db" name="Changes" comment="a4c evaluation">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/pythonProject.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/pythonProject.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/younes_draft.py" beforeDir="false" afterPath="$PROJECT_DIR$/younes_draft.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/A4C_only_processing.py" beforeDir="false" afterPath="$PROJECT_DIR$/A4C_processing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/raghad_draft.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/rehima_draft.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,7 +38,7 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/AIU-FYP-G1/echocardiogram-heart-prediction.git&quot;,
-    &quot;accountId&quot;: &quot;4b707f6f-481b-46a2-b59c-538b0ff5430d&quot;
+    &quot;accountId&quot;: &quot;2e3d98e0-3266-4ebc-88fd-46cbbaa2d1c3&quot;
   }
 }</component>
   <component name="ProjectColorInfo">{
@@ -50,8 +55,9 @@
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/yodj/Desktop/echocardiogram-heart-prediction/dataset&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Putrajaya-PC09/Desktop/echocardiogram-heart-prediction&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -94,8 +100,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-PY-241.19072.16" />
-        <option value="bundled-python-sdk-8336bb23522e-2767605e8bc2-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-241.19072.16" />
+        <option value="bundled-js-predefined-d6986cc7102b-e768b9ed790e-JavaScript-PY-243.21565.199" />
+        <option value="bundled-python-sdk-cab1f2013843-4ae2d6a61b08-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-243.21565.199" />
       </set>
     </attachedChunks>
   </component>
@@ -115,6 +121,11 @@
       <workItem from="1723447918928" duration="262000" />
       <workItem from="1723527103998" duration="6047000" />
       <workItem from="1723609811643" duration="629000" />
+      <workItem from="1732016315643" duration="1050000" />
+      <workItem from="1732087639501" duration="6302000" />
+      <workItem from="1732101771747" duration="965000" />
+      <workItem from="1733144355035" duration="1639000" />
+      <workItem from="1733404813293" duration="3107000" />
     </task>
     <task id="LOCAL-00001" summary="updating gitignore and requirements">
       <option name="closed" value="true" />
@@ -172,7 +183,39 @@
       <option name="project" value="LOCAL" />
       <updated>1723530109884</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="training both views">
+      <option name="closed" value="true" />
+      <created>1732016443893</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1732016443893</updated>
+    </task>
+    <task id="LOCAL-00009" summary="isolating A4C data">
+      <option name="closed" value="true" />
+      <created>1732102136695</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1732102136695</updated>
+    </task>
+    <task id="LOCAL-00010" summary="a4c evaluation">
+      <option name="closed" value="true" />
+      <created>1733145563157</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1733145563157</updated>
+    </task>
+    <task id="LOCAL-00011" summary="a4c evaluation">
+      <option name="closed" value="true" />
+      <created>1733145612982</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1733145612982</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -186,17 +229,9 @@
     <MESSAGE value="Scaling numerical features" />
     <MESSAGE value="extracting and moving logistic" />
     <MESSAGE value="using regression combined model" />
-    <option name="LAST_COMMIT_MESSAGE" value="using regression combined model" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>8</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+    <MESSAGE value="training both views" />
+    <MESSAGE value="isolating A4C data" />
+    <MESSAGE value="a4c evaluation" />
+    <option name="LAST_COMMIT_MESSAGE" value="a4c evaluation" />
   </component>
 </project>
