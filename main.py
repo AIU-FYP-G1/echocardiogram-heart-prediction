@@ -7,6 +7,9 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import *
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import json
+import os
+from tensorflow.keras.callbacks import Callback
 
 BASE_PATH = './dataset'
 
@@ -57,6 +60,67 @@ def process_data(metadata, volume_tracings, video_features, ef_values, view_name
     numerical_features = ['Age', 'Weight', 'Height'] + [col for col in volume_stats.columns if col != 'FileName']
 
     demographic_features = final_data[numerical_features].values
+
+    volume_stats.columns = ['FileName'] + [
+        f'{x}_{y}' for x, y in volume_stats.columns[1:]
+        if y not in ['<lambda_0>', '<lambda_1>']
+    ] + [f'{x}_q1' for x in ['X', 'Y']] + [f'{x}_q3' for x in ['X', 'Y']]
+
+    print(f"{view_name} final shapes:")
+    print(f"Video features: {video_features.shape}")
+    print(f"Demographic features: {demographic_features.shape}")
+    print(f"EF values: {ef_values[:n_videos].shape}")
+
+    return demographic_features, video_features, ef_values[:n_videos]
+
+
+def detailed_process_data(metadata, volume_tracings, video_features, ef_values, view_name):
+    print(f"\nProcessing {view_name} data:")
+    n_videos = len(video_features)
+    valid_filenames = metadata.iloc[:n_videos]['FileName'].tolist()
+
+    volume_stats = volume_tracings[volume_tracings['FileName'].isin(valid_filenames)].groupby('FileName').agg({
+        'X': ['mean', 'std', 'min', 'max', 'median', lambda x: np.percentile(x, 25), lambda x: np.percentile(x, 75)],
+        'Y': ['mean', 'std', 'min', 'max', 'median', lambda x: np.percentile(x, 25), lambda x: np.percentile(x, 75)]
+    }).reset_index()
+
+    volume_stats.columns = ['FileName'] + [
+        f'{x}_{y}' for x, y in volume_stats.columns[1:]
+        if y not in ['<lambda_0>', '<lambda_1>']
+    ] + [f'{x}_q1' for x in ['X', 'Y']] + [f'{x}_q3' for x in ['X', 'Y']]
+
+    filtered_metadata = metadata[metadata['FileName'].isin(valid_filenames)].copy()
+
+    final_data = pd.merge(filtered_metadata, volume_stats, on='FileName', how='inner')
+
+    final_data['BMI'] = final_data['Weight'] / ((final_data['Height'] / 100) ** 2)
+
+    final_data['Age_Category'] = pd.cut(final_data['Age'],
+                                        bins=[0, 30, 45, 60, 75, 100],
+                                        labels=['Young', 'Middle-Age', 'Early-Senior', 'Senior', 'Elderly']
+                                        )
+
+    final_data['X_Range'] = final_data['X_max'] - final_data['X_min']
+    final_data['Y_Range'] = final_data['Y_max'] - final_data['Y_min']
+    final_data['Aspect_Ratio'] = final_data['X_Range'] / final_data['Y_Range']
+
+    numerical_features = [
+        'Age', 'Weight', 'Height', 'BMI',
+        'X_mean', 'X_std', 'X_min', 'X_max', 'X_median', 'X_q1', 'X_q3',
+        'Y_mean', 'Y_std', 'Y_min', 'Y_max', 'Y_median', 'Y_q1', 'Y_q3',
+        'X_Range', 'Y_Range', 'Aspect_Ratio'
+    ]
+
+    view_encoded = pd.DataFrame([view_name] * len(final_data), columns=['View'])
+    view_encoded = pd.get_dummies(view_encoded['View'], prefix='View')
+
+    age_encoded = pd.get_dummies(final_data['Age_Category'], prefix='Age_Group')
+
+    demographic_features = np.hstack([
+        final_data[numerical_features].values,
+        age_encoded.values,
+        view_encoded.values
+    ])
 
     print(f"{view_name} final shapes:")
     print(f"Video features: {video_features.shape}")
@@ -135,6 +199,129 @@ def create_model(video_shape, demographic_shape):
     model = Model(inputs=[view_input, view_demographic_input], outputs=output)
 
     return model
+
+
+class TrainingMetricsTracker:
+    def __init__(self, model_name):
+        self.metrics = {
+            'model_metadata': {
+                'model_name': model_name,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            },
+            'epoch_metrics': [],
+            'learning_dynamics': {
+                'loss_values': [],
+                'mae_values': []
+            },
+            'performance_breakdown': {
+                'per_epoch_performance': {},
+                'view_specific_metrics': {}
+            },
+            'batch_metrics': []
+        }
+
+        self.output_dir = f'./model_tracking_{model_name}'
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    def track_epoch_metrics(self, epoch, logs):
+        epoch_metrics = {
+            'epoch': epoch,
+            'train_loss': logs.get('loss', 0),
+            'val_loss': logs.get('val_loss', 0),
+            'train_mae': logs.get('mae', 0),
+            'val_mae': logs.get('val_mae', 0)
+        }
+
+        self.metrics['epoch_metrics'].append(epoch_metrics)
+
+        self.metrics['learning_dynamics']['loss_values'].append(epoch_metrics['train_loss'])
+        self.metrics['learning_dynamics']['mae_values'].append(epoch_metrics['train_mae'])
+
+    def track_view_specific_performance(self, view_name, performance_metrics):
+        self.metrics['performance_breakdown']['view_specific_metrics'][view_name] = performance_metrics
+
+    def save_metrics(self):
+        metrics_path = os.path.join(self.output_dir, 'training_metrics.json')
+        with open(metrics_path, 'w') as f:
+            json.dump(self.metrics, f, indent=4)
+
+        self._plot_loss_curves()
+        self._plot_learning_dynamics()
+        self._plot_view_performance()
+
+    def _plot_loss_curves(self):
+        df = pd.DataFrame(self.metrics['epoch_metrics'])
+        plt.figure(figsize=(12, 5))
+
+        plt.subplot(1, 2, 1)
+        plt.plot(df['epoch'], df['train_loss'], label='Training Loss')
+        plt.plot(df['epoch'], df['val_loss'], label='Validation Loss')
+        plt.title('Loss Curves')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+
+        plt.subplot(1, 2, 2)
+        plt.plot(df['epoch'], df['train_mae'], label='Training MAE')
+        plt.plot(df['epoch'], df['val_mae'], label='Validation MAE')
+        plt.title('Mean Absolute Error Curves')
+        plt.xlabel('Epoch')
+        plt.ylabel('MAE')
+        plt.legend()
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, 'loss_and_mae_curves.png'))
+        plt.close()
+
+    def _plot_learning_dynamics(self):
+        plt.figure(figsize=(12, 5))
+
+        plt.subplot(1, 2, 1)
+        plt.plot(self.metrics['learning_dynamics']['loss_values'])
+        plt.title('Loss Values')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+
+        plt.subplot(1, 2, 2)
+        plt.plot(self.metrics['learning_dynamics']['mae_values'])
+        plt.title('Mean Absolute Error')
+        plt.xlabel('Epoch')
+        plt.ylabel('MAE')
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, 'learning_dynamics.png'))
+        plt.close()
+
+    def _plot_view_performance(self):
+        views = list(self.metrics['performance_breakdown']['view_specific_metrics'].keys())
+        mae_scores = [
+            metrics.get('mae', 0) for metrics in
+            self.metrics['performance_breakdown']['view_specific_metrics'].values()
+        ]
+
+        plt.figure(figsize=(8, 5))
+        plt.bar(views, mae_scores)
+        plt.title('Performance by View')
+        plt.xlabel('View')
+        plt.ylabel('Mean Absolute Error')
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.output_dir, 'view_performance.png'))
+        plt.close()
+
+
+def create_tracking_callback(metrics_tracker):
+    class MetricsTrackerCallback(Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            metrics_tracker.track_epoch_metrics(epoch, logs or {})
+
+        def on_train_batch_end(self, batch, logs=None):
+            if logs and 'loss' in logs:
+                metrics_tracker.metrics['batch_metrics'].append({
+                    'batch': batch,
+                    'loss': logs.get('loss', 0)
+                })
+
+    return MetricsTrackerCallback()
 
 
 def train_model(views):

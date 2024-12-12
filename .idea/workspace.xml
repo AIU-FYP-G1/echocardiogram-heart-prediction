@@ -5,13 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="9e38a34b-0b6f-48a9-a6d8-1da1c34ec0db" name="Changes" comment="a4c evaluation">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/pythonProject.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/pythonProject.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/A4C_only_processing.py" beforeDir="false" afterPath="$PROJECT_DIR$/A4C_processing.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/raghad_draft.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/rehima_draft.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -125,7 +120,9 @@
       <workItem from="1732087639501" duration="6302000" />
       <workItem from="1732101771747" duration="965000" />
       <workItem from="1733144355035" duration="1639000" />
-      <workItem from="1733404813293" duration="3107000" />
+      <workItem from="1733404813293" duration="3258000" />
+      <workItem from="1733655505583" duration="2917000" />
+      <workItem from="1734012636605" duration="911000" />
     </task>
     <task id="LOCAL-00001" summary="updating gitignore and requirements">
       <option name="closed" value="true" />
