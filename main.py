@@ -7,9 +7,11 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import *
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-import json
 import os
-from tensorflow.keras.callbacks import Callback
+import json
+import seaborn as sns
+from tensorflow.keras.callbacks import Callback, LearningRateScheduler, EarlyStopping
+
 
 BASE_PATH = './dataset'
 
@@ -120,6 +122,74 @@ def detailed_process_data(metadata, volume_tracings, video_features, ef_values, 
         final_data[numerical_features].values,
         age_encoded.values,
         view_encoded.values
+    ])
+
+    print(f"{view_name} final shapes:")
+    print(f"Video features: {video_features.shape}")
+    print(f"Demographic features: {demographic_features.shape}")
+    print(f"EF values: {ef_values[:n_videos].shape}")
+
+    return demographic_features, video_features, ef_values[:n_videos]
+
+
+def detailed_process_data_iteration_2(metadata, volume_tracings, video_features, ef_values, view_name):
+    print(f"\nProcessing {view_name} data:")
+    n_videos = len(video_features)
+    valid_filenames = metadata.iloc[:n_videos]['FileName'].tolist()
+
+    volume_stats = volume_tracings[volume_tracings['FileName'].isin(valid_filenames)].groupby('FileName').agg({
+        'X': ['mean', 'std', 'min', 'max', 'median', lambda x: np.percentile(x, 25), lambda x: np.percentile(x, 75)],
+        'Y': ['mean', 'std', 'min', 'max', 'median', lambda x: np.percentile(x, 25), lambda x: np.percentile(x, 75)]
+    }).reset_index()
+
+    volume_stats.columns = ['FileName'] + [
+        f'{x}_{y}' for x, y in volume_stats.columns[1:]
+        if y not in ['<lambda_0>', '<lambda_1>']
+    ] + [f'{x}_q1' for x in ['X', 'Y']] + [f'{x}_q3' for x in ['X', 'Y']]
+
+    filtered_metadata = metadata[metadata['FileName'].isin(valid_filenames)].copy()
+
+    final_data = pd.merge(filtered_metadata, volume_stats, on='FileName', how='inner')
+
+    final_data['BMI'] = final_data['Weight'] / ((final_data['Height'] / 100) ** 2)
+
+    final_data['Age_Category'] = pd.cut(final_data['Age'],
+                                        bins=[0, 30, 45, 60, 75, 100],
+                                        labels=['Young', 'Middle-Age', 'Early-Senior', 'Senior', 'Elderly']
+                                        )
+
+    final_data['X_Range'] = final_data['X_max'] - final_data['X_min']
+    final_data['Y_Range'] = final_data['Y_max'] - final_data['Y_min']
+    final_data['Aspect_Ratio'] = final_data['X_Range'] / final_data['Y_Range']
+
+    numerical_features = [
+        'Age', 'Weight', 'Height', 'BMI',
+        'X_mean', 'X_std', 'X_min', 'X_max', 'X_median', 'X_q1', 'X_q3',
+        'Y_mean', 'Y_std', 'Y_min', 'Y_max', 'Y_median', 'Y_q1', 'Y_q3',
+        'X_Range', 'Y_Range', 'Aspect_Ratio'
+    ]
+
+    view_encoded = pd.DataFrame([view_name] * len(final_data), columns=['View'])
+    view_encoded = pd.get_dummies(view_encoded['View'], prefix='View')
+
+    age_encoded = pd.get_dummies(final_data['Age_Category'], prefix='Age_Group')
+
+    demographic_features = np.hstack([
+        final_data[numerical_features].values,
+        age_encoded.values,
+        view_encoded.values
+    ])
+
+    final_data['Volume_Variability'] = final_data['X_std'] * final_data['Y_std']
+    final_data['Circularity'] = (4 * np.pi * final_data['X_mean'] * final_data['Y_mean']) / \
+                                (final_data['X_Range'] ** 2 + final_data['Y_Range'] ** 2)
+
+    final_data['Heart_Rate_Efficiency'] = final_data['Weight'] / final_data['Age']
+
+    numerical_features.extend([
+        'Volume_Variability',
+        'Circularity',
+        'Heart_Rate_Efficiency'
     ])
 
     print(f"{view_name} final shapes:")
@@ -354,6 +424,116 @@ def train_model(views):
     )
 
     return model, history
+
+
+def train_model_iteration_one(views):
+    video, demographic, ef = load_and_combine_views(views)
+    X_video_train, X_video_val, X_demo_train, X_demo_val, y_train, y_val = train_test_split(
+        video,
+        demographic,
+        ef,
+        test_size=0.2,
+        random_state=42
+    )
+    video_shape = video.shape[1:]
+    demographic_shape = demographic.shape[1]
+    model = create_model(video_shape, demographic_shape)
+
+    # Initialize metrics tracker
+    model_name = f"EF_Predictor_{'_'.join(views)}"
+    metrics_tracker = TrainingMetricsTracker(model_name)
+    tracking_callback = create_tracking_callback(metrics_tracker)
+
+    model.compile(
+        optimizer=Adam(learning_rate=1e-4),
+        loss='mean_squared_error',
+        metrics=['mae']
+    )
+
+    history = model.fit(
+        [X_video_train, X_demo_train],
+        y_train,
+        validation_data=([X_video_val, X_demo_val], y_val),
+        epochs=10,
+        batch_size=8,
+        callbacks=[tracking_callback]
+    )
+
+    # Track view-specific performance
+    metrics_tracker.track_view_specific_performance('Combined', {
+        'mae': np.mean(history.history['val_mae']),
+        'loss': np.mean(history.history['val_loss'])
+    })
+
+    # Save metrics and generate visualizations
+    metrics_tracker.save_metrics()
+
+    return model, history, metrics_tracker
+
+
+def augment_video_data(video_features, augmentation_factor=1.5):
+    augmented_features = np.copy(video_features)
+
+    noise = np.random.normal(
+        0,
+        0.01 * augmentation_factor,
+        augmented_features.shape
+    )
+    augmented_features += noise
+
+    dropout_mask = np.random.random(augmented_features.shape[:2]) > (0.1 * augmentation_factor)
+    augmented_features *= dropout_mask[:, :, np.newaxis, np.newaxis, np.newaxis]
+
+    return augmented_features
+
+
+def train_model_iteration_2(views):
+    video, demographic, ef = load_and_combine_views(views)
+
+    video = augment_video_data(video)
+
+    X_video_train, X_video_val, X_demo_train, X_demo_val, y_train, y_val = train_test_split(
+        video,
+        demographic,
+        ef,
+        test_size=0.2,
+        random_state=42
+    )
+
+    video_shape = video.shape[1:]
+    demographic_shape = demographic.shape[1]
+    model = create_model(video_shape, demographic_shape)
+
+    lr_scheduler = LearningRateScheduler(
+        lambda epoch: 1e-4 * (0.5 ** np.floor((1 + epoch) / 5))
+    )
+
+    early_stopping = EarlyStopping(
+        monitor='val_mae',
+        patience=10,
+        restore_best_weights=True
+    )
+
+    model.compile(
+        optimizer=Adam(learning_rate=1e-4),
+        loss='mean_squared_error',
+        metrics=['mae']
+    )
+
+    history = model.fit(
+        [X_video_train, X_demo_train],
+        y_train,
+        validation_data=([X_video_val, X_demo_val], y_val),
+        epochs=50,
+        batch_size=8,
+        callbacks=[
+            lr_scheduler,
+            early_stopping,
+            tracking_callback
+        ]
+    )
+
+    return model, history, metrics_tracker
 
 
 def evaluate(model_path, view_to_evaluate):
