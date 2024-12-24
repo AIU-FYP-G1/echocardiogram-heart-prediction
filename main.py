@@ -12,7 +12,6 @@ import json
 import seaborn as sns
 from tensorflow.keras.callbacks import Callback, LearningRateScheduler, EarlyStopping
 
-
 BASE_PATH = './dataset'
 
 
@@ -200,6 +199,46 @@ def detailed_process_data_iteration_2(metadata, volume_tracings, video_features,
     return demographic_features, video_features, ef_values[:n_videos]
 
 
+def process_data_improved(metadata, view_name):
+    features = metadata.copy()
+
+    features['BMI'] = features['Weight'] / ((features['Height'] / 100) ** 2)
+
+    AGE_BINS = [0, 30, 45, 60, 75, float('inf')]
+    AGE_CATEGORIES = ['Young', 'Middle-Age', 'Early-Senior', 'Senior', 'Elderly']
+    age_idx = next(i for i, threshold in enumerate(AGE_BINS[1:])
+                   if features['Age'] <= threshold)
+    age_encoding = [1 if i == age_idx else 0 for i in range(len(AGE_CATEGORIES))]
+
+    features['BSA'] = 0.007184 * (features['Weight'] ** 0.425) * (features['Height'] ** 0.725)
+    features['Ideal_Weight'] = 22 * ((features['Height'] / 100) ** 2)
+    features['Weight_Ratio'] = features['Weight'] / features['Ideal_Weight']
+
+    features['Age_Risk'] = features['Age'] / 100
+    features['BMI_Risk'] = (features['BMI'] - 25).clip(0) / 10
+
+    view_value = 1 if view_name == "A4C" else 0
+
+    numerical_features = [
+        'Age',
+        'Weight',
+        'Height',
+        'BMI',
+        'BSA',
+        'Weight_Ratio',
+        'Age_Risk',
+        'BMI_Risk'
+    ]
+
+    demographic_features = np.hstack([
+        features[numerical_features].values,
+        age_encoding,
+        [view_value]
+    ])
+
+    return demographic_features
+
+
 def load_and_combine_views(views=['a4c', 'psax']):
     views = [view.upper() for view in views]
 
@@ -210,29 +249,19 @@ def load_and_combine_views(views=['a4c', 'psax']):
     for view in views:
         if view == 'A4C':
             a4c_metadata, a4c_tracings, a4c_video_features, a4c_ef_values = load_view_data('A4C')
-            a4c_demographic, a4c_video, a4c_ef = process_data(
-                a4c_metadata, a4c_tracings, a4c_video_features, a4c_ef_values, 'A4C'
-            )
+            demographic_features = process_data_improved(a4c_metadata, 'A4C')
 
-            a4c_view_indicator = np.ones((a4c_demographic.shape[0], 1))
-            a4c_demographic = np.hstack([a4c_demographic, a4c_view_indicator])
-
-            combined_video.append(a4c_video)
-            combined_demographic.append(a4c_demographic)
-            combined_ef.append(a4c_ef)
+            combined_video.append(a4c_video_features)
+            combined_demographic.append(demographic_features)
+            combined_ef.append(a4c_ef_values)
 
         elif view == 'PSAX':
             psax_metadata, psax_tracings, psax_video_features, psax_ef_values = load_view_data('PSAX')
-            psax_demographic, psax_video, psax_ef = process_data(
-                psax_metadata, psax_tracings, psax_video_features, psax_ef_values, 'PSAX'
-            )
+            demographic_features = process_data_improved(psax_metadata, 'PSAX')
 
-            psax_view_indicator = np.zeros((psax_demographic.shape[0], 1))
-            psax_demographic = np.hstack([psax_demographic, psax_view_indicator])
-
-            combined_video.append(psax_video)
-            combined_demographic.append(psax_demographic)
-            combined_ef.append(psax_ef)
+            combined_video.append(psax_video_features)
+            combined_demographic.append(demographic_features)
+            combined_ef.append(psax_ef_values)
 
         else:
             raise ValueError(f"Unsupported view type: {view}. Supported views are 'A4C' and 'PSAX'.")
@@ -419,7 +448,7 @@ def train_model(views):
         [X_video_train, X_demo_train],
         y_train,
         validation_data=([X_video_val, X_demo_val], y_val),
-        epochs=10,
+        epochs=15,
         batch_size=8
     )
 
